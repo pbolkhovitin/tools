@@ -14,12 +14,12 @@ SOURCE_CLANG_FORMAT="../materials/linters/.clang-format"
 # Проверяем наличие .clang-format в текущей папке
 if [ ! -f "$CLANG_FORMAT_FILE" ]; then
     echo "Файл .clang-format не найден в текущей директории."
-    
+
     # Проверяем наличие исходного файла
     if [ -f "$SOURCE_CLANG_FORMAT" ]; then
         echo "Копирую .clang-format из $SOURCE_CLANG_FORMAT..."
         cp "$SOURCE_CLANG_FORMAT" "$CLANG_FORMAT_FILE"
-        
+
         if [ $? -ne 0 ]; then
             echo "Ошибка при копировании .clang-format"
             exit 1
