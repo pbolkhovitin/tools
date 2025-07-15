@@ -54,16 +54,6 @@ if [ $has_errors -eq 0 ]; then
     echo "Все файлы соответствуют clang-format."
     exit 0
 else
-    echo "Найдены файлы, не соответствующие clang-format."
-    echo "Вы можете автоматически исправить их, запустив:"
-    echo "find . -type f \( -name \"*.c\" -o -name \"*.h\" \) -exec clang-format --style=file -i {} \;"
-    exit 1
-fi
-
-if [ $has_errors -eq 0 ]; then
-    echo "Все файлы соответствуют clang-format."
-    exit 0
-else
     echo ""
     echo "Найдены файлы, не соответствующие clang-format:"
     for file in $files; do
