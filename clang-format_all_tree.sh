@@ -59,3 +59,39 @@ else
     echo "find . -type f \( -name \"*.c\" -o -name \"*.h\" \) -exec clang-format --style=file -i {} \;"
     exit 1
 fi
+
+if [ $has_errors -eq 0 ]; then
+    echo "Все файлы соответствуют clang-format."
+    exit 0
+else
+    echo ""
+    echo "Найдены файлы, не соответствующие clang-format:"
+    for file in $files; do
+        if ! clang-format --style=file --dry-run --Werror "$file" &> /dev/null; then
+            echo "  $file"
+        fi
+    done
+    echo ""
+
+    read -p "Хотите автоматически отформатировать эти файлы? (y/n): " choice
+    case "$choice" in
+        y|Y)
+            echo "Форматирование файлов..."
+            for file in $files; do
+                if ! clang-format --style=file --dry-run --Werror "$file" &> /dev/null; then
+                    clang-format --style=file -i "$file"
+                    echo "Отформатирован: $file"
+                fi
+            done
+            echo "Форматирование завершено."
+            ;;
+        n|N)
+            echo "Форматирование отменено. Файлы остались без изменений."
+            ;;
+        *)
+            echo "Неверный ввод. Форматирование отменено."
+            ;;
+    esac
+
+    exit 1
+fi
