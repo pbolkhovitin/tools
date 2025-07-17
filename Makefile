@@ -22,6 +22,9 @@ all: update_gitignore print_module documentation_module bst_create_test bst_inse
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR) && touch $(BUILD_DIR)/.gitkeep
 
+$(BUILD_DIR)/print_module.o: print_module.c print_module.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+	
 # Quest 1: Print Module (без документации)
 print_module: $(BUILD_DIR)/Quest_1
 
@@ -100,7 +103,7 @@ clean_artifacts:
 	fi
 
 clean_print:
-	rm -f $(BUILD_DIR)/print_module.o $(BUILD_DIR)/main_module_entry_point.o $(BUILD_DIR)/Quest_1
+	rm -f $(BUILD_DIR)/print_module.o $(BUILD_DIR)/main_print.o $(BUILD_DIR)/Quest_1
 
 clean_docs:
 	rm -f $(BUILD_DIR)/documentation_module.o $(BUILD_DIR)/main_documentation.o $(BUILD_DIR)/Quest_2
@@ -119,31 +122,31 @@ test: test_print test_docs test_bst_create test_bst_insert test_bst_traverse
 
 test_print: CFLAGS += $(SANITIZERS) $(DEBUG_FLAGS)
 test_print: LDFLAGS += $(SANITIZERS)
-test_print: rebuild_print
+test_print: print_module
 	@echo "=== Testing print_module with sanitizers ==="
 	$(BUILD_DIR)/Quest_1
 
 test_docs: CFLAGS += $(SANITIZERS) $(DEBUG_FLAGS)
 test_docs: LDFLAGS += $(SANITIZERS)
-test_docs: rebuild_docs
+test_docs: documentation_module
 	@echo "=== Testing documentation_module with sanitizers ==="
 	$(BUILD_DIR)/Quest_2
 
 test_bst_create: CFLAGS += $(SANITIZERS) $(DEBUG_FLAGS)
 test_bst_create: LDFLAGS += $(SANITIZERS)
-test_bst_create: rebuild_bst_create
+test_bst_create: bst_create_test
 	@echo "=== Testing bst_create with sanitizers ==="
 	$(BUILD_DIR)/Quest_3
 
 test_bst_insert: CFLAGS += $(SANITIZERS) $(DEBUG_FLAGS)
 test_bst_insert: LDFLAGS += $(SANITIZERS)
-test_bst_insert: rebuild_bst_insert
+test_bst_insert: bst_insert_test
 	@echo "=== Testing bst_insert with sanitizers ==="
 	$(BUILD_DIR)/Quest_4
 
 test_bst_traverse: CFLAGS += $(SANITIZERS) $(DEBUG_FLAGS)
 test_bst_traverse: LDFLAGS += $(SANITIZERS)
-test_bst_traverse: rebuild_bst_traverse
+test_bst_traverse: bst_traverse_test
 	@echo "=== Testing bst_traverse with sanitizers ==="
 	$(BUILD_DIR)/Quest_5
 
