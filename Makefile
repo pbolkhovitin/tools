@@ -11,6 +11,10 @@ SRC_DIR = .
 TEST_DIR = tests
 GITIGNORE = ../.gitignore
 
+# Formatting
+CLANG_FORMAT_SRC := materials/linters/.clang-format
+CLANG_FORMAT_DEST := src/.clang-format
+
 # Targets
 .PHONY: all clean clean_artifacts rebuild test valgrind cppcheck \
 		format-check format-fix update_gitignore restore_gitignore \
@@ -101,6 +105,7 @@ clean_artifacts:
 	@if [ -d "$(BUILD_DIR)" ]; then \
 		find $(BUILD_DIR) -maxdepth 1 -type f \( -name '*.o' -o -name 'Quest_*' \) -exec rm -f {} +; \
 	fi
+	@rm -f src/.clang-format
 
 clean_print:
 	rm -f $(BUILD_DIR)/print_module.o $(BUILD_DIR)/main_print.o $(BUILD_DIR)/Quest_1
@@ -169,22 +174,32 @@ cppcheck:
 
 # Formatting
 format-check:
-	@if [ ! -f $(SRC_DIR)/.clang-format ]; then \
-		echo ".clang-format not found in $(SRC_DIR), copying from materials/linters/..."; \
-		cp materials/linters/.clang-format $(SRC_DIR)/; \
+	@echo "Copying .clang-format to src/..."
+	@if [ -f "$(CLANG_FORMAT_SRC)" ]; then \
+		cp "$(CLANG_FORMAT_SRC)" "$(CLANG_FORMAT_DEST)"; \
+		echo "Checking code style with clang-format..."; \
+		cd src && find . -name '*.c' -o -name '*.h' | xargs clang-format --dry-run --Werror; \
+		rm -f "$(CLANG_FORMAT_DEST)"; \
+		echo "Formatting check complete. Run 'make format-fix' to automatically fix issues."; \
+	else \
+		echo "Error: .clang-format not found in $(CLANG_FORMAT_SRC)"; \
+		echo "Please ensure the linters are installed in materials/linters/"; \
+		exit 1; \
 	fi
-	@echo "Checking code style with clang-format..."
-	@find $(SRC_DIR) -name '*.c' -o -name '*.h' | xargs clang-format --dry-run --Werror
-	@echo "Formatting check complete. Run 'make format-fix' to automatically fix issues."
 
 format-fix:
-	@if [ ! -f $(SRC_DIR)/.clang-format ]; then \
-		echo ".clang-format not found in $(SRC_DIR), copying from materials/linters/..."; \
-		cp materials/linters/.clang-format $(SRC_DIR)/; \
+	@echo "Copying .clang-format to src/..."
+	@if [ -f "$(CLANG_FORMAT_SRC)" ]; then \
+		cp "$(CLANG_FORMAT_SRC)" "$(CLANG_FORMAT_DEST)"; \
+		echo "Fixing code style with clang-format..."; \
+		cd src && find . -name '*.c' -o -name '*.h' | xargs clang-format -i; \
+		rm -f "$(CLANG_FORMAT_DEST)"; \
+		echo "Formatting fixed."; \
+	else \
+		echo "Error: .clang-format not found in $(CLANG_FORMAT_SRC)"; \
+		echo "Please ensure the linters are installed in materials/linters/"; \
+		exit 1; \
 	fi
-	@echo "Fixing code style with clang-format..."
-	@find $(SRC_DIR) -name '*.c' -o -name '*.h' | xargs clang-format -i
-	@echo "Formatting fixed."
 
 # Rebuild targets
 rebuild: clean all
@@ -215,8 +230,8 @@ help:
 	@echo "  test_bst_traverse        Test BST traverse with sanitizers"
 	@echo "  valgrind                 Run all targets under valgrind"
 	@echo "  cppcheck                 Run static analysis with cppcheck"
-	@echo "  format-check             Check code style without modifying"
-	@echo "  format-fix               Fix code style automatically"
+	@echo "  format-check             Check code style (copies .clang-format to src/ temporarily)"
+	@echo "  format-fix               Fix code style (copies .clang-format to src/ temporarily)"
 	@echo "  clean                    Remove all build artifacts"
 	@echo "  clean_print              Clean print module artifacts"
 	@echo "  clean_docs               Clean documentation module artifacts"
