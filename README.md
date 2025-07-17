@@ -119,3 +119,77 @@
 ## Ограничения
    Не отображает симлинки и специальные файлы (только обычные файлы и директории).
    Глубина рекурсии ограничена возможностями системы.
+
+
+# Описание Makefile T12D18
+
+## Этот Makefile предназначен для сборки и управления проектом, включающим несколько модулей и тестовых программ.
+
+## Основные функции
+
+### 1. Компиляция
+- Поддержка модулей:
+  - `print_module` (Quest_1)
+  - `documentation_module` (Quest_2)
+  - Тесты для работы с BST (Quest_3-5):
+    - Создание узла (`bst_create_test`)
+    - Вставка (`bst_insert_test`)
+    - Обход (`bst_traverse_test`)
+- Используются строгие флаги компиляции:
+  ```makefile
+  CFLAGS = -std=c11 -Wall -Werror -Wextra
+  ```
+  Поддержка санитайзеров:
+  ```makefile
+  SANITIZERS = -fsanitize=address -fsanitize=undefined -fsanitize=leak
+  ```
+  
+### 2. Тестирование
+Запуск тестов с санитайзерами:
+```bash
+make test        # Все тесты
+make test_print  # Только print_module
+```
+Проверка памяти через Valgrind:
+```bash
+make valgrind
+```
+3. Управление артефактами
+Автоматическое управление .gitignore:
+```bash
+make update_gitignore    # Добавить правила
+make restore_gitignore  # Удалить правила
+```
+Очистка:
+```bash
+make clean            # Полная очистка
+make clean_print      # Только print_module
+```
+4. Дополнительные инструменты
+Проверка стиля кода:
+```bash
+make format-check  # Проверить
+make format-fix    # Исправить
+```
+Статический анализ:
+```bash
+make cppcheck
+```
+5. Пересборка
+```bash
+make rebuild            # Полная пересборка
+make rebuild_print      # Только print_module
+```
+Справка
+```bash
+make help
+```
+Выводит список всех доступных команд с описанием.
+
+Примеры использования
+```bash
+make                    # Собрать всё
+make test               # Собрать и запустить тесты
+make clean && make all  # Полная пересборка
+make print_module       # Собрать только print_module
+```  
