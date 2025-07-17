@@ -85,7 +85,10 @@ $(BUILD_DIR)/bst_traverse_test.o: bst_traverse_test.c bst.h | $(BUILD_DIR)
 update_gitignore:
 	@if [ ! -f $(GITIGNORE) ]; then touch $(GITIGNORE); fi
 	@if ! grep -q "^# Build artifacts" $(GITIGNORE); then \
-		echo "\n# Build artifacts" >> $(GITIGNORE); \
+		if [ -s $(GITIGNORE) ] && [ "$(tail -c 1 $(GITIGNORE))" != "" ]; then \
+			echo "" >> $(GITIGNORE); \
+		fi; \
+		echo "# Build artifacts" >> $(GITIGNORE); \
 		echo "/build/*" >> $(GITIGNORE); \
 		echo "!/build/.gitkeep" >> $(GITIGNORE); \
 		echo "Quest_*" >> $(GITIGNORE); \
@@ -94,12 +97,17 @@ update_gitignore:
 
 restore_gitignore:
 	@if [ -f "$(GITIGNORE)" ]; then \
-		sed -i.bak '/^# Build artifacts/,/^*.o/d' $(GITIGNORE); \
-		rm -f $(GITIGNORE).bak; \
+		if grep -q "^# Build artifacts" $(GITIGNORE); then \
+			sed -i.bak '/^# Build artifacts/,/^*.o/d' $(GITIGNORE); \
+			# Удаляем возможную пустую строку перед секцией \
+			sed -i.bak -e :a -e '/^\n*$/{$d;N;ba' -e '}' $(GITIGNORE); \
+			rm -f $(GITIGNORE).bak; \
+		fi; \
 	fi
 
 # Clean targets
 clean: clean_artifacts restore_gitignore
+		@rm -f $(GITIGNORE).bak
 
 clean_artifacts:
 	@if [ -d "$(BUILD_DIR)" ]; then \
@@ -180,7 +188,7 @@ format-check:
 		echo "Checking code style with clang-format..."; \
 		find . -name '*.c' -o -name '*.h' | xargs clang-format --dry-run --Werror; \
 		rm -f "$(CLANG_FORMAT_DEST)"; \
-		echo "Formatting check complete. Run 'make format-fix' to automatically fix issues."; \
+		echo "Formatting check complete. Run 'make format-fix' to automatically fix issues. Remove .clang-format"; \
 	else \
 		echo "Error: .clang-format not found in $(CLANG_FORMAT_SRC)"; \
 		echo "Please ensure the linters are installed in materials/linters/"; \
