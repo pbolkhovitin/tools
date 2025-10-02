@@ -2,8 +2,9 @@
 
 # Проверяем, передан ли аргумент (путь к каталогу)
 if [ -z "$1" ]; then
-    echo "Использование: $0 <директория> [выходной_файл]"
+    echo "Использование: $0 <директория> [выходной_файл] [максимальная_глубина]"
     echo "Пример: $0 . tree.txt"
+    echo "Пример с глубиной: $0 . tree.txt 10"
     exit 1
 fi
 
@@ -13,12 +14,19 @@ TARGET_DIR="$1"
 # Устанавливаем выходной файл (по умолчанию tree.txt)
 OUTPUT_FILE="${2:-tree.txt}"
 
-# Максимальная глубина рекурсии (для безопасности)
-MAX_DEPTH=20
+# Устанавливаем максимальную глубину рекурсии (по умолчанию 20)
+MAX_DEPTH="${3:-20}"
 
 # Проверяем существование директории
 if [ ! -d "$TARGET_DIR" ]; then
     echo "Ошибка: директория '$TARGET_DIR' не существует"
+    exit 1
+fi
+
+# Проверяем, что максимальная глубина - положительное число
+if ! [[ "$MAX_DEPTH" =~ ^[0-9]+$ ]] || [ "$MAX_DEPTH" -lt 1 ]; then
+    echo "Ошибка: максимальная глубина должна быть положительным числом"
+    echo "Получено: '$MAX_DEPTH'"
     exit 1
 fi
 
@@ -44,8 +52,6 @@ show_progress() {
     printf "%*s" $completed | tr ' ' '='
     printf "%*s" $remaining | tr ' ' ' '
     printf "] %d%% (%d/%d)" $percentage $current $total
-    
-    sleep 0.2
 }
 
 # Универсальная функция для подсчета элементов (используется для подсчета и построения)
@@ -67,11 +73,22 @@ count_and_build() {
         return
     fi
     
-    # Получаем содержимое директории
+    # Получаем содержимое директории с обработкой ошибок
     local entries=()
+    local ls_output
+    ls_output=$(ls -A "$dir" 2>&1)
+    local ls_exit_code=$?
+    
+    if [ $ls_exit_code -ne 0 ]; then
+        if [ "$mode" = "build" ]; then
+            echo "${indent}└── [ошибка доступа: ${ls_output//$dir\//}]" >> "$OUTPUT_FILE"
+        fi
+        return
+    fi
+    
     while IFS= read -r entry; do
         entries+=("$entry")
-    done < <(ls -A "$dir" 2>/dev/null)
+    done <<< "$ls_output"
     
     local count=${#entries[@]}
     local i=0
