@@ -26,6 +26,7 @@ fi
 # Проверяем, что максимальная глубина - положительное число
 if ! [[ "$MAX_DEPTH" =~ ^[0-9]+$ ]] || [ "$MAX_DEPTH" -lt 1 ]; then
     echo "Ошибка: максимальная глубина должна быть положительным числом"
+    echo "Получено: '$MAX_DEPTH'"
     exit 1
 fi
 
@@ -70,6 +71,13 @@ echo "Дерево каталогов для: $TARGET_DIR" > "$OUTPUT_FILE"
 echo "Генерируется: $(date)" >> "$OUTPUT_FILE"
 echo "Максимальная глубина: $MAX_DEPTH уровней" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
+
+echo "Генерация дерева каталогов..."
+echo "Целевая директория: $TARGET_DIR"
+echo "Выходной файл: $OUTPUT_FILE"
+echo "Максимальная глубина: $MAX_DEPTH уровней"
+echo ""
+
 build_tree "$TARGET_DIR" "" 0 >> "$OUTPUT_FILE"
 
 echo "Дерево каталогов сохранено в: $OUTPUT_FILE"
