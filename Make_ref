@@ -1,0 +1,250 @@
+# Makefile for building, testing, and formatting C modules
+# Supports print_module, documentation_module, and BST-related tests (create, insert, traverse)
+# Designed for scalability with automatic file detection, modular rules, and debug/release modes
+
+# === Compiler and Flags ===
+# CC: Compiler, defaults to gcc, override with `make CC=clang`
+CC ?= gcc
+# CFLAGS: Compilation flags for standards, warnings, and optimizations
+CFLAGS = -std=c11 -Wall -Werror -Wextra
+# SANITIZERS: Enable address, undefined behavior, and leak sanitizers for debug builds
+SANITIZERS = -fsanitize=address -fsanitize=undefined -fsanitize=leak
+# DEBUG_FLAGS: Add debugging symbols for debug builds
+DEBUG_FLAGS = -g
+# RELEASE_FLAGS: Optimize for performance in release builds
+RELEASE_FLAGS = -O2
+# LDFLAGS: Linker flags, extended with sanitizers for debug builds
+LDFLAGS =
+
+# === Directories ===
+# BUILD_DIR: Output directory for object files and binaries
+BUILD_DIR ?= ../build
+# SRC_DIR: Directory for source files (.c, .h)
+SRC_DIR ?= .
+# TEST_DIR: Directory for test files
+TEST_DIR ?= tests
+# GITIGNORE: Path to .gitignore file for managing build artifacts
+GITIGNORE ?= ../.gitignore
+# CLANG_FORMAT_SRC: Source path for clang-format configuration
+CLANG_FORMAT_SRC ?= ../materials/linters/.clang-format
+# CLANG_FORMAT_DEST: Temporary destination for clang-format file
+CLANG_FORMAT_DEST ?= ./.clang-format
+
+# === Build Type Configuration ===
+# BUILD_TYPE: Set to 'debug' for sanitizers/debugging or 'release' for optimization
+BUILD_TYPE ?= release
+ifeq ($(BUILD_TYPE),debug)
+    CFLAGS += $(DEBUG_FLAGS) $(SANITIZERS)
+    LDFLAGS += $(SANITIZERS)
+else
+    CFLAGS += $(RELEASE_FLAGS)
+endif
+
+# === Automatic Source Detection ===
+# SRCS: Automatically find all .c files in SRC_DIR
+SRCS = $(wildcard $(SRC_DIR)/*.c)
+# OBJS: Generate object files in BUILD_DIR from source files
+OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
+
+# === Automatic Dependency Generation ===
+# Include dependency files (.d) generated during compilation
+CFLAGS += -MMD -MP
+-include $(OBJS:.o=.d)
+
+# === Module Definitions ===
+# MODULES: List of Quest numbers (expandable for new modules)
+MODULES = 1 2 3 4 5
+# QUEST_TARGETS: Generate binary targets (Quest_1, Quest_2, etc.)
+QUEST_TARGETS = $(addprefix $(BUILD_DIR)/Quest_, $(MODULES))
+
+# === Phony Targets ===
+# Declare targets that don't produce files
+.PHONY: all clean clean_artifacts rebuild test valgrind cppcheck \
+        format-check format-fix update_gitignore restore_gitignore \
+        check-tools help
+
+# === Main Target ===
+# all: Build all Quest binaries after updating .gitignore and checking tools
+all: update_gitignore check-tools $(QUEST_TARGETS)
+
+# === Build Directory Setup ===
+# Create BUILD_DIR and add .gitkeep to allow empty directories in git
+$(BUILD_DIR):
+	@echo "Creating build directory: $(BUILD_DIR)"
+	mkdir -p $(BUILD_DIR) && touch $(BUILD_DIR)/.gitkeep
+
+# === Generic Object Compilation Rule ===
+# Compile any .c file to .o in BUILD_DIR
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	@echo "Compiling $< to $@"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# === Module Rule Macro ===
+# Define a reusable rule for each Quest module
+# Usage: $(eval $(call MODULE_RULE,quest_number,module_name,object_files))
+define MODULE_RULE
+# Quest $(1): $(2)
+$(BUILD_DIR)/Quest_$(1): $(addprefix $(BUILD_DIR)/, $(3))
+	@echo "Linking $$@ for $(2)"
+	$(CC) $(CFLAGS) $$^ -o $$@ $(LDFLAGS)
+endef
+
+# === Define Module-Specific Rules ===
+# Quest 1: Print Module
+OBJS_1 = print_module.o main_print.o
+$(eval $(call MODULE_RULE,1,Print Module,$(OBJS_1)))
+
+# Quest 2: Documentation Module
+OBJS_2 = print_module.o main_docs.o documentation_module.o
+$(eval $(call MODULE_RULE,2,Documentation Module,$(OBJS_2)))
+$(BUILD_DIR)/main_docs.o: main_module_entry_point.c print_module.h documentation_module.h
+	@echo "Compiling main_docs.o with DOCUMENTATION_MODULE flag"
+	$(CC) $(CFLAGS) -DDOCUMENTATION_MODULE -c $< -o $@
+
+# Quest 3: BST Create Test
+OBJS_3 = bst_create_test.o bst.o
+$(eval $(call MODULE_RULE,3,BST Create Test,$(OBJS_3)))
+
+# Quest 4: BST Insert Test
+OBJS_4 = bst_insert_test.o bst.o
+$(eval $(call MODULE_RULE,4,BST Insert Test,$(OBJS_4)))
+
+# Quest 5: BST Traverse Test
+OBJS_5 = bst_traverse_test.o bst.o
+$(eval $(call MODULE_RULE,5,BST Traverse Test,$(OBJS_5)))
+
+# === Gitignore Management ===
+# update_gitignore: Add build artifacts to .gitignore if not present
+update_gitignore:
+	@echo "Updating .gitignore"
+	@if [ ! -f $(GITIGNORE) ]; then touch $(GITIGNORE); fi
+	@if ! grep -q "^# Build artifacts" $(GITIGNORE); then \
+		if [ -s $(GITIGNORE) ] && [ "$(tail -c 1 $(GITIGNORE))" != "" ]; then \
+			echo "" >> $(GITIGNORE); \
+		fi; \
+		echo "# Build artifacts" >> $(GITIGNORE); \
+		echo "/build/*" >> $(GITIGNORE); \
+		echo "!/build/.gitkeep" >> $(GITIGNORE); \
+		echo "Quest_*" >> $(GITIGNORE); \
+		echo "*.o" >> $(GITIGNORE); \
+	fi
+
+# restore_gitignore: Remove build artifact entries from .gitignore
+restore_gitignore:
+	@echo "Restoring .gitignore"
+	@if [ -f "$(GITIGNORE)" ]; then \
+		if grep -q "^# Build artifacts" $(GITIGNORE); then \
+			sed -i.bak '/^# Build artifacts/,/^*.o/d' $(GITIGNORE); \
+			sed -i.bak -e :a -e '/^\n*$/{$d;N;ba' -e '}' $(GITIGNORE); \
+			rm -f $(GITIGNORE).bak; \
+		fi; \
+	fi
+
+# === Clean Targets ===
+# clean: Remove all artifacts and restore .gitignore
+clean: clean_artifacts restore_gitignore
+	@echo "Cleaning backup files"
+	rm -f $(GITIGNORE).bak
+
+# clean_artifacts: Remove all files in BUILD_DIR
+clean_artifacts:
+	@echo "Removing build artifacts"
+	rm -rf $(BUILD_DIR)/*
+
+# === Test Targets ===
+# test: Run tests for all Quest binaries
+test: $(addprefix test_Quest_,$(MODULES))
+
+# test_Quest_X: Run individual Quest binary with sanitizers
+test_Quest_%: $(BUILD_DIR)/Quest_%
+	@echo "=== Testing Quest_$* with sanitizers ==="
+	$<
+
+# === Valgrind Checks ===
+# valgrind: Run all Quest binaries under valgrind for memory leak detection
+valgrind: all
+	@for mod in $(MODULES); do \
+		echo "=== Running valgrind on Quest_$$mod ==="; \
+		valgrind --leak-check=full --track-origins=yes $(BUILD_DIR)/Quest_$$mod; \
+	done
+
+# === Static Analysis ===
+# cppcheck: Run static analysis on source files
+cppcheck:
+	@echo "Running cppcheck static analysis"
+	cppcheck --enable=all --suppress=missingIncludeSystem $(SRC_DIR)
+
+# === Tool Availability Check ===
+# check-tools: Verify required tools are installed
+check-tools:
+	@echo "Checking required tools"
+	@command -v $(CC) >/dev/null || (echo "$(CC) not found"; exit 1)
+	@command -v valgrind >/dev/null || (echo "valgrind not found"; exit 1)
+	@command -v cppcheck >/dev/null || (echo "cppcheck not found"; exit 1)
+	@command -v clang-format >/dev/null || (echo "clang-format not found"; exit 1)
+
+# === Code Formatting ===
+# format-check: Check code style using clang-format
+format-check: check-tools
+	@echo "Copying .clang-format to $(SRC_DIR)"
+	@if [ -f "$(CLANG_FORMAT_SRC)" ]; then \
+		cp "$(CLANG_FORMAT_SRC)" "$(CLANG_FORMAT_DEST)"; \
+		echo "Checking code style with clang-format..."; \
+		find $(SRC_DIR) -name '*.c' -o -name '*.h' | xargs clang-format --dry-run --Werror; \
+		rm -f "$(CLANG_FORMAT_DEST)"; \
+		echo "Formatting check complete. Run 'make format-fix' to fix issues."; \
+	else \
+		echo "Error: .clang-format not found in $(CLANG_FORMAT_SRC)"; \
+		exit 1; \
+	fi
+
+# format-fix: Automatically fix code style using clang-format
+format-fix: check-tools
+	@echo "Copying .clang-format to $(SRC_DIR)"
+	@if [ -f "$(CLANG_FORMAT_SRC)" ]; then \
+		cp "$(CLANG_FORMAT_SRC)" "$(CLANG_FORMAT_DEST)"; \
+		echo "Fixing code style with clang-format..."; \
+		find $(SRC_DIR) -name '*.c' -o -name '*.h' | xargs clang-format -i; \
+		rm -f "$(CLANG_FORMAT_DEST)"; \
+		echo "Formatting fixed."; \
+	else \
+		echo "Error: .clang-format not found in $(CLANG_FORMAT_SRC)"; \
+		exit 1; \
+	fi
+
+# === Rebuild ===
+# rebuild: Clean and rebuild all targets
+rebuild: clean all
+
+# === Help ===
+# help: Display available targets and usage examples
+help:
+	@echo "Usage: make [target] [BUILD_TYPE=debug|release] [CC=compiler]"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  all                      Build all Quest binaries (default)"
+	@echo "  test                     Run tests for all Quests"
+	@echo "  valgrind                 Run all Quests under valgrind"
+	@echo "  cppcheck                 Run static analysis with cppcheck"
+	@echo "  format-check             Check code style with clang-format"
+	@echo "  format-fix               Fix code style with clang-format"
+	@echo "  clean                    Remove all build artifacts"
+	@echo "  clean_artifacts          Remove build directory contents"
+	@echo "  rebuild                  Clean and rebuild all"
+	@echo "  check-tools              Verify required tools are installed"
+	@echo "  update_gitignore         Add build artifacts to .gitignore"
+	@echo "  restore_gitignore        Remove build artifacts from .gitignore"
+	@echo "  help                     Show this help message"
+	@echo ""
+	@echo "Variables:"
+	@echo "  BUILD_TYPE=debug         Build with sanitizers and debug flags"
+	@echo "  BUILD_TYPE=release       Optimized build (default)"
+	@echo "  CC=clang                 Use clang instead of gcc"
+	@echo "  BUILD_DIR=path           Set custom build directory"
+	@echo "  SRC_DIR=path             Set custom source directory"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make BUILD_TYPE=debug    # Build with debugging and sanitizers"
+	@echo "  make -j$(nproc)          # Parallel build with max jobs"
+	@echo "  make test                # Run all tests"
+	@echo "  make CC=clang format-fix # Format code using clang"
